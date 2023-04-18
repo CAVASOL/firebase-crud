@@ -1,23 +1,87 @@
-import logo from './logo.svg';
-import './App.css';
+import { useState, useEffect } from "react";
+import { db } from "./firebase.config";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
+import "./App.css";
 
 function App() {
+  const [newName, setNewName] = useState("");
+  const [newAge, setNewAge] = useState(0);
+  const [users, setUsers] = useState([]);
+  const usersCollectionRef = collection(db, "users");
+
+  const createUser = async () => {
+    await addDoc(usersCollectionRef, { name: newName, age: Number(newAge) });
+  };
+
+  const updateUser = async (id, age) => {
+    const userDoc = doc(db, "users", id);
+    const newFields = { age: age + 1 };
+    await updateDoc(userDoc, newFields);
+  };
+
+  const deleteUser = async (id) => {
+    const userDoc = doc(db, "users", id);
+    await deleteDoc(userDoc);
+  };
+
+  useEffect(() => {
+    const getUsers = async () => {
+      const usersSnapshot = await getDocs(usersCollectionRef);
+      setUsers(
+        usersSnapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }))
+      );
+    };
+
+    getUsers();
+  }, [usersCollectionRef]);
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <div
+        className="input-field"
+        style={{ display: "grid", justifyContent: "center" }}
+      >
+        <input
+          type="text"
+          placeholder="Enter your name"
+          onChange={(e) => setNewName(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Enter your age"
+          onChange={(e) => setNewAge(e.target.value)}
+        />
+        <button onClick={createUser}>Create User</button>
+      </div>
+      {users.map((user) => {
+        return (
+          <div key={user.id}>
+            <h2>Name: {user.name}</h2>
+            <h2>Age: {user.age}</h2>
+            <button
+              onClick={(e) => {
+                updateUser(user.id, user.age);
+              }}
+            >
+              Increase Age
+            </button>
+            <button
+              onClick={(e) => {
+                deleteUser(user.id);
+              }}
+            >
+              Delete User
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
