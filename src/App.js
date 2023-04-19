@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase.config";
+import { storage } from "./firebase.config";
 import {
   collection,
   getDocs,
@@ -8,6 +9,8 @@ import {
   doc,
   deleteDoc,
 } from "firebase/firestore";
+import { ref, uploadBytes, listAll, getDownloadURL } from "firebase/storage";
+import { v4 } from "uuid";
 import "./App.css";
 
 function App() {
@@ -15,6 +18,23 @@ function App() {
   const [newAge, setNewAge] = useState(0);
   const [users, setUsers] = useState([]);
   const usersCollectionRef = collection(db, "users");
+  const [imageUpload, setImageUpload] = useState(null);
+  const [imageList, setImageList] = useState([]);
+
+  const imageListRef = ref(storage, "images/");
+
+  const uploadImage = async () => {
+    if (imageUpload == null) {
+      return;
+    }
+
+    const imageRef = ref(storage, `images/${imageUpload.name + v4()}`);
+    uploadBytes(imageRef, imageUpload).then((snapshot) => {
+      getDownloadURL(snapshot.ref).then((url) => {
+        setImageList((prev) => [...prev, url]);
+      });
+    });
+  };
 
   const createUser = async () => {
     await addDoc(usersCollectionRef, { name: newName, age: Number(newAge) });
@@ -30,6 +50,16 @@ function App() {
     const userDoc = doc(db, "users", id);
     await deleteDoc(userDoc);
   };
+
+  useEffect(() => {
+    listAll(imageListRef).then((res) => {
+      res.items.forEach((item) => {
+        getDownloadURL(item).then((url) => {
+          setImageList((prev) => [...prev, url]);
+        });
+      });
+    });
+  }, []);
 
   useEffect(() => {
     const getUsers = async () => {
@@ -48,6 +78,13 @@ function App() {
         className="input-field"
         style={{ display: "grid", justifyContent: "center" }}
       >
+        <input
+          type="file"
+          onChange={(e) => {
+            setImageUpload(e.target.files[0]);
+          }}
+        />
+        <button onClick={uploadImage}>Upload Image</button>
         <input
           type="text"
           placeholder="Enter your name"
@@ -81,6 +118,10 @@ function App() {
             </button>
           </div>
         );
+      })}
+
+      {imageList.map((url, i) => {
+        return <img src={url} key={i} alt="product" />;
       })}
     </div>
   );
